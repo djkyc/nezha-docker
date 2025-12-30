@@ -4,22 +4,25 @@ FROM golang:1.25-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+# 关键：关闭 toolchain 坑
+ENV GOTOOLCHAIN=local
+ENV GOFLAGS=-buildvcs=false
+
 WORKDIR /app
 
-# 安装依赖
 RUN apk add --no-cache git ca-certificates
 
 # 克隆 nezha 官方仓库
 RUN git clone --depth=1 https://github.com/nezhahq/nezha.git .
 
-# 下载 Go 依赖
+# 下载依赖
 RUN go mod download
 
 # 构建 agent
 RUN CGO_ENABLED=0 \
     GOOS=${TARGETOS} \
     GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -o nezha-agent ./cmd/agent
+    go build -trimpath -ldflags="-s -w" -o nezha-agent ./cmd/agent
 
 # -------- Runtime --------
 FROM busybox:stable-musl
@@ -30,6 +33,7 @@ COPY --from=builder /app/nezha-agent /app/nezha-agent
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 ENV TZ=UTC
+
 EXPOSE 5555
 
 ENTRYPOINT ["/app/nezha-agent"]
