@@ -1,5 +1,4 @@
-name: Build & Push to GHCR
-
+name: 哪吒v1-docker
 on:
   push:
     branches: [ "main" ]
