@@ -1,19 +1,15 @@
 # -------- Builder --------
-FROM golang:1.25-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-
-# 关键：关闭 toolchain 坑
-ENV GOTOOLCHAIN=local
-ENV GOFLAGS=-buildvcs=false
 
 WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
-# 克隆 nezha 官方仓库
-RUN git clone --depth=1 https://github.com/nezhahq/nezha.git .
+# 固定到可构建的稳定版本（关键）
+RUN git clone --branch v0.20.6 --depth=1 https://github.com/nezhahq/nezha.git .
 
 # 下载依赖
 RUN go mod download
@@ -33,7 +29,6 @@ COPY --from=builder /app/nezha-agent /app/nezha-agent
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 ENV TZ=UTC
-
 EXPOSE 5555
 
 ENTRYPOINT ["/app/nezha-agent"]
