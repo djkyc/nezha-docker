@@ -22,12 +22,14 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     chmod +x nezha-agent
 
 # -------- Runtime --------
-FROM busybox:stable-musl
+FROM alpine:3.20
 
 WORKDIR /app
 
+# runtime 安装 CA 证书（关键：不要 COPY /etc/ssl/certs）
+RUN apk add --no-cache ca-certificates tzdata
+
 COPY --from=downloader /tmp/nezha-agent /app/nezha-agent
-COPY /etc/ssl/certs /etc/ssl/certs
 
 ENV TZ=UTC
 EXPOSE 5555
