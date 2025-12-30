@@ -9,14 +9,16 @@ WORKDIR /app
 # 安装依赖
 RUN apk add --no-cache git ca-certificates
 
-# 先下载依赖（利用缓存）
+# 复制 go.mod 和 go.sum
 COPY go.mod go.sum ./
+
+# 下载依赖
 RUN go mod download
 
-# 拷贝源码
+# 复制整个项目
 COPY . .
 
-# 构建二进制
+# 构建 nezha agent
 RUN CGO_ENABLED=0 \
     GOOS=${TARGETOS} \
     GOARCH=${TARGETARCH} \
@@ -27,7 +29,7 @@ FROM busybox:stable-musl
 
 WORKDIR /app
 
-# 拷贝程序和证书
+# 拷贝可执行文件和证书
 COPY --from=builder /app/nezha-agent /app/nezha-agent
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
