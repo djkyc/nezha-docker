@@ -1,32 +1,33 @@
-# -------- Builder --------
-FROM golang:1.22-alpine AS builder
+# -------- Downloader --------
+FROM alpine:3.20 AS downloader
 
-ARG TARGETOS
 ARG TARGETARCH
+ENV NEZHA_VERSION=v0.20.6
 
-WORKDIR /app
+WORKDIR /tmp
 
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache ca-certificates wget tar
 
-# 固定到可构建的稳定版本（关键）
-RUN git clone --branch v0.20.6 --depth=1 https://github.com/nezhahq/nezha.git .
-
-# 下载依赖
-RUN go mod download
-
-# 构建 agent
-RUN CGO_ENABLED=0 \
-    GOOS=${TARGETOS} \
-    GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o nezha-agent ./cmd/agent
+# 根据架构下载官方 agent
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        AGENT_ARCH="amd64"; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        AGENT_ARCH="arm64"; \
+    else \
+        echo "Unsupported arch: $TARGETARCH" && exit 1; \
+    fi && \
+    wget -O nezha-agent.tar.gz \
+      https://github.com/nezhahq/nezha/releases/download/${NEZHA_VERSION}/nezha-agent-linux-${AGENT_ARCH}.tar.gz && \
+    tar -xzf nezha-agent.tar.gz && \
+    chmod +x nezha-agent
 
 # -------- Runtime --------
 FROM busybox:stable-musl
 
 WORKDIR /app
 
-COPY --from=builder /app/nezha-agent /app/nezha-agent
-COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=downloader /tmp/nezha-agent /app/nezha-agent
+COPY /etc/ssl/certs /etc/ssl/certs
 
 ENV TZ=UTC
 EXPOSE 5555
